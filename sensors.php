@@ -1,6 +1,14 @@
 <?php
 require_once "connection.php";
+require_once "jwt.php";
 
+if($_SERVER["REQUEST_METHOD"]=="OPTIONS") exit();
+$jwt = apache_request_headers()["Authorization"];
+if(strstr($jwt, "Bearer")) $jwt = substr($jwt, 7);
+if(JWT::verify($jwt, "12345678")){
+    header(("HTTP/1.1 401 Unauthorized"));
+    exit();
+}
 $metodo = $_SERVER["REQUEST_METHOD"];
 
 switch($metodo){
@@ -44,8 +52,29 @@ switch($metodo){
         break;
     case "PUT":
         //Actualizar
+        if(!isset($_GET['type']) || !isset($_GET['value']) 
+        || !isset($_GET['id'])){
+            header("HTTP/1.1 400 Bad Request");
+            return;
+        }
+        $c = connection();
+        $s = $c->prepare("UPDATE sensors SET type=:t, value=:v WHERE id=:id");
+        $s->bindValue(":id", $_GET['id']);
+        $s->bindValue(":t", $_GET['type']);
+        $s->bindValue(":v", $_GET['value']);
+        $s->execute();
+        echo json_encode(["status"=>"ok"]);
         break;
     case "DELETE":
         //Eliminar
+        if(!isset($_GET['id'])){
+            header("HTTP/1.1 400 Bad Request");
+            return;
+        }
+        $c = connection();
+        $s = $c->prepare("DELETE FROM sensors WHERE id=:id");
+        $s->bindValue(":id", $_GET['id']);
+        $s->execute();
+        echo json_encode(["status"=>"ok"]);
         break;
 }
